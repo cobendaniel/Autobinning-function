@@ -52,20 +52,22 @@ def autobinner(df):
     df4["Lower Boundary"][0] = "Minimum"
     df4["Upper Boundary"][len(df4) - 1] = "Maximum"
     
+    missing_list = []
+
+    for i in classes:
+        if i not in list(df4["{}_FineClass".format(variable)]):
+            missing_list.append(i)
+
+    for i in missing_list:
+        print("Missing Classes: {}".format(i))
+    
+    print("")
+        
     df_last_value = df4["{}_FineClass".format(variable)][len(df4) - 1]
           
     print("There are a total of {} classes, with the last class being {}".format(len(df4), df_last_value))
     print("")
-    
-    new_list = []
-    
-    for i in df4["{}_FineClass".format(variable)]:
-        if i not in classes:
-            new_list.append(i)
-                
-    for i in new_list:
-        print("Missing Classes: {}".format(i))
-    
+        
     x_axis = df4[["{}_FineClass".format(variable), "Weight of Evidence"]].sort_values("{}_FineClass".format(variable), ascending = False)
     x = x_axis["Weight of Evidence"]
     y = df4["{}_FineClass".format(variable)].sort_values(ascending = False)
