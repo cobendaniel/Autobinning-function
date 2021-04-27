@@ -1,0 +1,78 @@
+def autobinner(df):    
+    print("Please specify the variable to be binned")
+    variable = input()
+    print("")
+    print("Please specify the target variable")
+    target = input()
+    print("")
+    
+    classes = ["Class_A", "Class_B", "Class_C", "Class_D", "Class_E", "Class_F", "Class_G", "Class_H", "Class_I", "Class_J", "Class_K", \
+               "Class_L", "Class_M", "Class_N", "Class_O", "Class_P", "Class_Q", "Class_R", "Class_S", "Class_T", "Class_U"]
+    
+    lower_bound = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95]
+    
+    upper_bound = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100]
+    
+    for (a, b, c) in zip(classes, lower_bound, upper_bound):
+        if c == "Class_A":
+            df.loc[df[f"{variable}"] == lower_bound[0], f"{variable}_FineClass"] = c
+        elif c != "Class_A":
+            df.loc[(df[f"{variable}"] > np.percentile(df[f"{variable}"], b)) & (df[f"{variable}"] <= np.percentile(df[f"{variable}"], c)), f"{variable}_FineClass".format(variable)] = a
+        
+    df.loc[df["{}".format(target)] >= 1, "{}_1".format(target)] = 1
+    df.loc[df["{}".format(target)] == 0, "{}_1".format(target)] = 0
+    
+    df_a = df[["{}_FineClass".format(variable), "{}_1".format(target)]].groupby("{}_FineClass".format(variable)).sum()
+    
+    df_vc = df["{}_FineClass".format(variable)].value_counts()
+    df2 = pd.DataFrame({"{}_FineClass".format(variable) : df_vc.index,\
+                        "Frequency" : df_vc.values,\
+                        "Percent" : ((df_vc.values / df_vc.sum()) * 100).round(2)})
+    
+    for (a, b, c) in zip(classes, lower_bound, upper_bound):
+        if b == 0:
+            df2.loc[df2["{}_FineClass".format(variable)] == "{}".format(a), "Lower Boundary"] = 0
+        elif b != 0:
+            df2.loc[df2["{}_FineClass".format(variable)] == "{}".format(a), "Lower Boundary"] = np.percentile(df["{}".format(variable)], b)
+        df2.loc[df2["{}_FineClass".format(variable)] == "{}".format(a), "Upper Boundary"] = np.percentile(df["{}".format(variable)], c)
+    
+    df2 = df2.sort_values(by = "{}_FineClass".format(variable))
+    df2 = df2[["{}_FineClass".format(variable), "Lower Boundary", "Upper Boundary", "Frequency", "Percent"]]
+    
+    for i in df2["{}_FineClass".format(variable)]:
+        print(i)
+    
+    print("")
+    
+    df3 = pd.merge(df2, df_a, on = "{}_FineClass".format(variable), how = "outer")
+    df4 = df3.rename(columns = {"{}_1".format(target) : "Number of Targets"})
+    df4["Number of Non-Targets"] = df4["Frequency"] - df4["Number of Targets"]    
+    df4["GB Odds"] = (df4["Number of Targets"] / df4["Number of Targets"].sum()) / (df4["Number of Non-Targets"] / df4["Number of Non-Targets"].sum())    
+    df4["Weight of Evidence"] = np.log(df4["GB Odds"])
+    df4["Lower Boundary"][0] = "Minimum"
+    df4["Upper Boundary"][len(df4) - 1] = "Maximum"
+    
+    df_last_value = df4["{}_FineClass".format(variable)][len(df4) - 1]
+          
+    print("There are a total of {} classes, with the last class being {}".format(len(df4), df_last_value))
+    print("")
+    
+    new_list = []
+    
+    for i in df4["{}_FineClass".format(variable)]:
+        if i not in classes:
+            new_list.append(i)
+                
+    for i in new_list:
+        print("Missing Classes: {}".format(i))
+    
+    x_axis = df4[["{}_FineClass".format(variable), "Weight of Evidence"]].sort_values("{}_FineClass".format(variable), ascending = False)
+    x = x_axis["Weight of Evidence"]
+    y = df4["{}_FineClass".format(variable)].sort_values(ascending = False)
+    plt.barh(y, x)
+    plt.xlabel("Weight of Evidence")
+    plt.ylabel("Classes")
+    plt.show()
+    print("")
+    
+    return df4
